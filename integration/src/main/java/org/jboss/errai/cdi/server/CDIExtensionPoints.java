@@ -33,14 +33,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.context.Conversation;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
-import javax.enterprise.inject.spi.AfterBeanDiscovery;
-import javax.enterprise.inject.spi.AnnotatedMethod;
-import javax.enterprise.inject.spi.AnnotatedType;
-import javax.enterprise.inject.spi.BeanManager;
-import javax.enterprise.inject.spi.BeforeBeanDiscovery;
-import javax.enterprise.inject.spi.Extension;
-import javax.enterprise.inject.spi.ProcessAnnotatedType;
-import javax.enterprise.inject.spi.ProcessObserverMethod;
+import javax.enterprise.inject.spi.*;
 import javax.inject.Inject;
 import javax.inject.Qualifier;
 
@@ -111,7 +104,7 @@ public class CDIExtensionPoints implements Extension {
         this.uuid = UUID.randomUUID().toString();
         this.managedTypes = new TypeRegistry();
 
-        log.info("Created Errai-CDI context: " + uuid);
+        log.info("created errai-cdi context: " + uuid);
     }
 
     /**
@@ -125,7 +118,7 @@ public class CDIExtensionPoints implements Extension {
 
         // services
         if (type.isAnnotationPresent(Service.class)) {
-            log.debug("Discovered Errai annotation on type: " + type);
+            log.debug("discovered errai annotation on type: " + type);
             boolean isRpc = false;
 
             Class<T> javaClass = type.getJavaClass();
@@ -133,7 +126,7 @@ public class CDIExtensionPoints implements Extension {
                 isRpc = intf.isAnnotationPresent(Remote.class);
 
                 if (isRpc) {
-                    log.debug("Identified Errai RPC interface: " + intf + " on " + type);
+                    log.debug("identified errai RPC interface: " + intf + " on " + type);
                     managedTypes.addRPCEndpoint(intf, type);
                 }
             }
@@ -156,36 +149,13 @@ public class CDIExtensionPoints implements Extension {
                 || (type.getJavaClass().getPackage().getName().contains("client")
                 && !type.getJavaClass().isInterface())) {
             event.veto();
-            log.info("Veto " + type);
+            log.debug("veto " + type);
         }
 
         /**
          * We must scan for Event consumer injection points to build the tables
          */
-        Class clazz = type.getJavaClass();
-
-        for (Field f : clazz.getDeclaredFields()) {
-            if (Event.class.isAssignableFrom(f.getType()) && f.isAnnotationPresent(Inject.class)) {
-                ParameterizedType pType = (ParameterizedType) f.getGenericType();
-
-                Class eventType = (Class) pType.getActualTypeArguments()[0];
-
-                if (isExposedEntityType(eventType)) {
-                    List<Annotation> qualifiers = new ArrayList<Annotation>();
-
-                    /**
-                     * Collect Qualifier types for the Event consumer.
-                     */
-                    for (Annotation annotation : f.getAnnotations()) {
-                        if (annotation.annotationType().isAnnotationPresent(Qualifier.class)) {
-                            qualifiers.add(annotation);
-                            eventQualifiers.put(annotation.annotationType().getName(), annotation);
-                        }
-                    }
-                    addObservableEvent(eventType.getName(), qualifiers.toArray(new Annotation[qualifiers.size()]));
-                }
-            }
-        }
+        findConsumers(type);
     }
 
     private void addObservableEvent(String typeName, Annotation[] qualifiers) {
@@ -211,6 +181,33 @@ public class CDIExtensionPoints implements Extension {
             }
         }
         observableEvents.put(typeName, eventQualifiers);
+    }
+
+    private void findConsumers(AnnotatedType<?> type) {
+        Class clazz = type.getJavaClass();
+
+        for (Field f : clazz.getFields()) {
+            if (Event.class.isAssignableFrom(f.getType()) && f.isAnnotationPresent(Inject.class)) {
+                ParameterizedType pType = (ParameterizedType) f.getGenericType();
+
+                Class eventType = (Class) pType.getActualTypeArguments()[0];
+
+                if (isExposedEntityType(eventType)) {
+                    List<Annotation> qualifiers = new ArrayList<Annotation>();
+
+                    /**
+                     * Collect Qualifier types for the Event consumer.
+                     */
+                    for (Annotation annotation : f.getAnnotations()) {
+                        if (annotation.annotationType().isAnnotationPresent(Qualifier.class)) {
+                            qualifiers.add(annotation);
+                            eventQualifiers.put(annotation.annotationType().getName(), annotation);
+                        }
+                    }
+                    addObservableEvent(eventType.getName(), qualifiers.toArray(new Annotation[qualifiers.size()]));
+                }
+            }
+        }
     }
 
     private boolean isExposedEntityType(Class type) {
@@ -340,7 +337,7 @@ public class CDIExtensionPoints implements Extension {
                                 contextManager.activateRequestContext();
                                 callMethod.invoke(targetBean, message);
                             } catch (Exception e) {
-                                ErrorHelper.sendClientError(bus, message, "Error dispatching service", e);
+                                ErrorHelper.sendClientError(bus, message, "error dispatching service", e);
                             } finally {
                                 contextManager.deactivateRequestContext();
                             }
@@ -358,7 +355,7 @@ public class CDIExtensionPoints implements Extension {
 
                                 callMethod.invoke(Util.lookupCallbackBean(beanManager, type), message);
                             } catch (Exception e) {
-                                ErrorHelper.sendClientError(bus, message, "Error dispatching service", e);
+                                ErrorHelper.sendClientError(bus, message, "error dispatching service", e);
                             } finally {
                                 contextManager.deactivateRequestContext();
                             }
@@ -493,7 +490,7 @@ public class CDIExtensionPoints implements Extension {
             }
 
             public <T> T getRemoteProxy(Class<T> proxyType) {
-                throw new RuntimeException("This API is not supported in the server-side environment.");
+                throw new RuntimeException("this API is not supported in the server-side environment.");
             }
         };
     }
