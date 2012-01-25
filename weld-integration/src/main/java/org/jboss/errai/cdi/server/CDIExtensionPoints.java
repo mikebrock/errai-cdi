@@ -366,8 +366,6 @@ public class CDIExtensionPoints implements Extension {
   }
 
   private void subscribeServices(final BeanManager beanManager, final MessageBus bus) {
-//    final BeanManagerImpl weldBeanManager = (BeanManagerImpl) beanManager;
-
     for (Map.Entry<AnnotatedType, List<AnnotatedMethod>> entry : managedTypes.getServiceMethods().entrySet()) {
       final Class<?> type = entry.getKey().getJavaClass();
 
@@ -381,9 +379,6 @@ public class CDIExtensionPoints implements Extension {
 
           @Override
           public void callback(Message message) {
-            //           ScopeUtil.associateRequestContext(message);
-            //           ScopeUtil.associateSessionContext(message);
-
             Object targetBean = CDIServerUtil.lookupBean(beanManager, type);
 
             try {
